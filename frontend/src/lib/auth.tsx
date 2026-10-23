@@ -6,7 +6,7 @@ import {
   useState,
 } from 'react'
 import type { ReactNode } from 'react'
-import { apiRequest } from '@/lib/api'
+import { ApiError, apiRequest } from '@/lib/api'
 import type { Session } from '@/lib/api'
 
 const TOKEN_KEY = 'flowsync.token'
@@ -83,14 +83,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [startSession],
   )
 
+  /**
+   * Revokes the token on the server before dropping it locally, so the user
+   * never believes they logged out while the token is still valid. Rethrows
+   * when the server could not revoke it (network error, 5xx).
+   */
   const logout = useCallback(async () => {
     try {
       await apiRequest('/account/logout', { method: 'POST', token })
-    } catch {
-      // The token may already be invalid; the local session is dropped anyway.
-    } finally {
-      clearSession()
+    } catch (error) {
+      // 401: the token is already invalid, so there is nothing left to revoke.
+      if (!(error instanceof ApiError && error.status === 401)) throw error
     }
+    clearSession()
   }, [token, clearSession])
 
   const value = useMemo(

@@ -25,6 +25,7 @@ export function ProfilePage() {
   const [state, setState] = useState<ProfileState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [logoutError, setLogoutError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -54,7 +55,17 @@ export function ProfilePage() {
 
   async function handleLogout() {
     setLoggingOut(true)
-    await logout()
+    setLogoutError(null)
+    try {
+      await logout()
+    } catch (error) {
+      setLogoutError(
+        error instanceof ApiError && error.status === 0
+          ? error.message
+          : 'No se pudo cerrar la sesión. Inténtalo de nuevo.',
+      )
+      setLoggingOut(false)
+    }
   }
 
   function retry() {
@@ -85,7 +96,12 @@ export function ProfilePage() {
           )}
           {state.status === 'ready' && <ProfileDetails user={state.user} />}
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex-col gap-3">
+          {logoutError && (
+            <Alert variant="destructive">
+              <AlertDescription>{logoutError}</AlertDescription>
+            </Alert>
+          )}
           <Button
             variant="outline"
             className="w-full"
